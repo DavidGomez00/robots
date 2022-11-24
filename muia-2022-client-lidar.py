@@ -13,6 +13,7 @@ import time
 # import cv2 as cv
 import numpy as np
 import sim
+from matplotlib import pyplot as plt
 
 # --------------------------------------------------------------------------
 
@@ -103,13 +104,13 @@ def getImageBlob(clientID, hRobot):
 def avoid(sonar):
     if (sonar[3] < 0.15) or (sonar[4] < 0.15):
         lspeed, rspeed = +0.3, -0.5
-    elif sonar[2] < 0.35:
+    elif (sonar[2] < 0.35):
         lspeed, rspeed = +1.0, -0.3
-    elif sonar[5] < 0.35:
+    elif (sonar[5] < 0.35):
         lspeed, rspeed = -0.3, +1.0
-    elif sonar[1] < 0.45:
+    elif (sonar[1] < 0.45):
         lspeed, rspeed = +1.5, -0.5
-    elif sonar[6] < 0.45:
+    elif (sonar[6] < 0.45):
         lspeed, rspeed = -0.5, +1.5
     else:
         lspeed, rspeed = +2.0, +2.0
@@ -130,18 +131,18 @@ def getLidar(clientID, hRobot):
     return sim.simxUnpackFloats(data)
 
 # --------------------------------------------------------------------------
-def clean_data(measures):
+def clean_data(data):
     """
-    Reading LIDAR laser beams (angles and corresponding distance data)
+    Reading LIDAR laser beams
     """
-    angles = []
-    distances = []
-    for measure in measures:
-        angles.append(float(measure[0]))
-        distances.append(float(measure[1]))
-    angles = np.array(angles)
-    distances = np.array(distances)
-    return angles, distances
+
+    # Create numpy array
+    data = np.array(data)
+
+    # Separate each point lecture
+    if(len(data) < 3):
+        return None
+    return np.split(data, len(data)/3)
 
 
 # --------------------------------------------------------------------------
@@ -163,20 +164,37 @@ def main():
     else:
         print('### Connected to remote API server')
         hRobot = getRobotHandles(clientID)
-
+        
+        x = []
+        y = []
+        
         while sim.simxGetConnectionId(clientID) != -1:
             # Perception
             sonar = getSonar(clientID, hRobot)
-            # print '### s', sonar
+            data = getLidar(clientID, hRobot)
+            
+            # Posición del pioneer
+            x_robot, y_robot, theta = getRobotPose(clientID, hRobot)
+            #print('### pos', x, y, theta)
 
-            # x, y, theta = getRobotPose(clientID, hRobot)
-            # print('### pos', x, y, theta)
-
-            data = clean_data(getLidar(clientID, hRobot))
-            print(data)
-
-            # Mapp data
-
+            # Mapeo de los datos del lidar
+            ## Separo los datos en puntos
+            data = clean_data(data)
+            ## Obtengo el ángulo de rotación del robot
+            ang = theta * (180/math.pi)
+            print(ang)
+            '''
+            ## Transformo los puntos en las coordenadas sin rotación
+            if data is None:
+                pass
+            else:                
+                for point in data:
+                    # Coordenadas en el eje sin rotación
+                    punto = np.array([point[0] + x_robot, point[1] + y_robot])
+                    real_point = np.array([[math.cos(ang), -math.sin(ang)], [math.sin(ang), math.cos(ang)]]) @ punto.T
+                    x.append(real_point[0])
+                    y.append(real_point[1])
+            '''
             # blobs, coord = getImageBlob(clientID, hRobot)
             # print('###  ', blobs, coord)
 
@@ -186,7 +204,15 @@ def main():
             # Action
             setSpeed(clientID, hRobot, lspeed, rspeed)
             time.sleep(0.1)
+        '''
+        # Convert points to numpy array
+        x = np.array(x)
+        y = np.array(y)
 
+        # Plot the points
+        plt.scatter(x,y)
+        plt.show()
+        '''
         print('### Finishing...')
         sim.simxFinish(clientID)
 
