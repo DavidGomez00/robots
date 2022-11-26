@@ -155,7 +155,8 @@ def main():
 
     sim.simxFinish(-1) # just in case, close all opened connections
 
-    port = int(sys.argv[1])
+    #port = int(sys.argv[1])
+    port = 19999
     clientID = sim.simxStart('127.0.0.1', port, True, True, 2000, 5)
 
     if clientID == -1:
@@ -167,6 +168,10 @@ def main():
         
         x = []
         y = []
+
+        # Posición del robot
+        x_r = []
+        y_r = []
         
         while sim.simxGetConnectionId(clientID) != -1:
             # Perception
@@ -180,21 +185,21 @@ def main():
             # Mapeo de los datos del lidar
             ## Separo los datos en puntos
             data = clean_data(data)
-            ## Obtengo el ángulo de rotación del robot
-            ang = theta * (180/math.pi)
-            print(ang)
-            '''
+
             ## Transformo los puntos en las coordenadas sin rotación
             if data is None:
                 pass
             else:                
                 for point in data:
                     # Coordenadas en el eje sin rotación
-                    punto = np.array([point[0] + x_robot, point[1] + y_robot])
-                    real_point = np.array([[math.cos(ang), -math.sin(ang)], [math.sin(ang), math.cos(ang)]]) @ punto.T
+                    p = np.array([point[0], point[1]])
+                    p_1 = np.array([[math.cos(theta), -math.sin(theta)], [math.sin(theta), math.cos(theta)]]) @ p.T
+                    real_point = np.array([p_1[0] + x_robot, p_1[1] + y_robot])
                     x.append(real_point[0])
                     y.append(real_point[1])
-            '''
+                    x_r.append(x_robot)
+                    y_r.append(y_robot)
+            
             # blobs, coord = getImageBlob(clientID, hRobot)
             # print('###  ', blobs, coord)
 
@@ -204,15 +209,18 @@ def main():
             # Action
             setSpeed(clientID, hRobot, lspeed, rspeed)
             time.sleep(0.1)
-        '''
+
         # Convert points to numpy array
         x = np.array(x)
         y = np.array(y)
+        x_r = np.array(x_r)
+        y_r = np.array(y_r)
 
         # Plot the points
         plt.scatter(x,y)
+        plt.scatter(x_r,y_r, c='magenta')
         plt.show()
-        '''
+ 
         print('### Finishing...')
         sim.simxFinish(clientID)
 
