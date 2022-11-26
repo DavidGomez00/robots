@@ -212,6 +212,11 @@ def main():
         y_r = []
         my_map = Map()
 
+        # Real time plotting sacado de:
+        # https://gist.github.com/superjax/33151f018407244cb61402e094099c1d
+        plt.ion() # enable real-time plotting
+        plt.figure(1) # create a plot
+
         while sim.simxGetConnectionId(clientID) != -1:
 
             x = []
@@ -246,6 +251,10 @@ def main():
                     y_r.append(y_robot)
 
             my_map.updateMap(x, y, x_robot, y_robot)
+
+            plt.clf()       # Borrar la figura
+            plt.imshow(my_map.occupancy_map.T, cmap="binary")
+            plt.pause(0.005)
             
             # blobs, coord = getImageBlob(clientID, hRobot)
             # print('###  ', blobs, coord)
@@ -269,6 +278,8 @@ def main():
         #plt.scatter(x_r,y_r, c='magenta')
         #plt.show()
         
+        plt.ioff()
+        plt.clf()
         plt.imshow(my_map.occupancy_map.T, cmap="binary")
         plt.show()
 
