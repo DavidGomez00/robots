@@ -14,6 +14,44 @@ import time
 import numpy as np
 import sim
 from matplotlib import pyplot as plt
+from bresenham import bresenham
+
+# --------------------------------------------------------------------------
+class Map:
+    # https://github.com/AtsushiSakai/PythonRobotics/blob/master/Mapping/lidar_to_grid_map/lidar_to_grid_map.py
+    def __init__(self):
+        # Los valores del mapa real son: X entre [-6,6], Y entre [-3,3]
+        self.resolution = 0.005
+        self.x_min = -6
+        self.y_min = -3
+        self.x_max = 6
+        self.y_max = 3
+        self.x_size = int((self.x_max) * 2 / self.resolution)
+        self.y_size = int((self.y_max) * 2 / self.resolution)
+        print(self.x_size)
+        print(self.y_size)
+
+
+        # Occupancy map a 0.5 cuando no sabemos nada
+        self.occupancy_map = np.ones(shape=[self.x_size, self.y_size]) / 2
+
+    def updateMap(self, x, y, x_r, y_r):
+        # coordenadas x e y del robot en el mapa
+        x_r = int(round((x_r - self.x_min) / self.resolution))
+        y_r = int(round((y_r - self.y_min) / self.resolution))
+            
+        for i in range(len(x)):
+            # x coordinate of the the occupied area
+            ix = int(round((x[i] - self.x_min) / self.resolution))
+            # y coordinate of the the occupied area
+            iy = int(round((y[i] - self.y_min) / self.resolution))
+            laser_beams = bresenham(x_r, y_r, ix, iy)       # line form the lidar to the occupied point
+            for laser_beam in laser_beams:
+                self.occupancy_map[laser_beam[0]][-(laser_beam[1] + 1)] = 0.0  # free area 0.0
+            self.occupancy_map[ix][-(iy + 1)] = 1.0         # occupied area 1.0
+            self.occupancy_map[ix + 1][-(iy + 1)] = 1.0     # extend the occupied area
+            self.occupancy_map[ix][-iy] = 1.0               # extend the occupied area
+            self.occupancy_map[ix + 1][-iy] = 1.0           # extend the occupied area
 
 # --------------------------------------------------------------------------
 
@@ -102,18 +140,19 @@ def getImageBlob(clientID, hRobot):
 # --------------------------------------------------------------------------
 
 def avoid(sonar):
-    if (sonar[3] < 0.15) or (sonar[4] < 0.15):
-        lspeed, rspeed = +0.3, -0.5
-    elif (sonar[2] < 0.35):
-        lspeed, rspeed = +1.0, -0.3
-    elif (sonar[5] < 0.35):
-        lspeed, rspeed = -0.3, +1.0
-    elif (sonar[1] < 0.45):
-        lspeed, rspeed = +1.5, -0.5
-    elif (sonar[6] < 0.45):
-        lspeed, rspeed = -0.5, +1.5
+    if (sonar[3] < 0.3) or (sonar[4] < 0.3):
+        lspeed, rspeed = +1.0, -0.75
+    elif (sonar[2] < 0.25):
+        lspeed, rspeed = +1.0, -0.5
+    elif (sonar[5] < 0.25):
+        lspeed, rspeed = -0.5, +1.0
+    elif (sonar[1] < 0.15):
+        lspeed, rspeed = +1.0, -0.2
+    elif (sonar[6] < 0.15):
+        lspeed, rspeed = -0.2, +1.0
     else:
-        lspeed, rspeed = +2.0, +2.0
+        lspeed, rspeed = +1.5, +1.5
+    #lspeed, rspeed = +1.0, +1.0
 
     return lspeed, rspeed
 
@@ -147,6 +186,7 @@ def clean_data(data):
 
 # --------------------------------------------------------------------------
 
+
 def main():
     print('### Program started')
 
@@ -165,26 +205,29 @@ def main():
     else:
         print('### Connected to remote API server')
         hRobot = getRobotHandles(clientID)
-        
-        x = []
-        y = []
 
-        # Posición del robot
+        x_total = []
+        y_total = []
         x_r = []
         y_r = []
-        
+        my_map = Map()
+
         while sim.simxGetConnectionId(clientID) != -1:
+
+            x = []
+            y = []
+
             # Perception
             sonar = getSonar(clientID, hRobot)
-            data = getLidar(clientID, hRobot)
-            
-            # Posición del pioneer
-            x_robot, y_robot, theta = getRobotPose(clientID, hRobot)
-            #print('### pos', x, y, theta)
+            # print '### s', sonar
 
-            # Mapeo de los datos del lidar
-            ## Separo los datos en puntos
+            x_robot, y_robot, theta = getRobotPose(clientID, hRobot)
+            # print('### pos', x, y, theta)
+
+            data = getLidar(clientID, hRobot)
             data = clean_data(data)
+            #print(data)
+            #print(theta)
 
             ## Transformo los puntos en las coordenadas sin rotación
             if data is None:
@@ -196,9 +239,13 @@ def main():
                     p_1 = np.array([[math.cos(theta), -math.sin(theta)], [math.sin(theta), math.cos(theta)]]) @ p.T
                     real_point = np.array([p_1[0] + x_robot, p_1[1] + y_robot])
                     x.append(real_point[0])
+                    x_total.append(real_point[0])
                     y.append(real_point[1])
+                    y_total.append(real_point[1])
                     x_r.append(x_robot)
                     y_r.append(y_robot)
+
+            my_map.updateMap(x, y, x_robot, y_robot)
             
             # blobs, coord = getImageBlob(clientID, hRobot)
             # print('###  ', blobs, coord)
@@ -209,6 +256,7 @@ def main():
             # Action
             setSpeed(clientID, hRobot, lspeed, rspeed)
             time.sleep(0.1)
+            #print('--------------------------------------------\n\n\n')
 
         # Convert points to numpy array
         x = np.array(x)
@@ -217,10 +265,14 @@ def main():
         y_r = np.array(y_r)
 
         # Plot the points
-        plt.scatter(x,y)
-        plt.scatter(x_r,y_r, c='magenta')
+        #plt.scatter(x,y)
+        #plt.scatter(x_r,y_r, c='magenta')
+        #plt.show()
+        
+        plt.imshow(my_map.occupancy_map.T, cmap="binary")
         plt.show()
- 
+
+
         print('### Finishing...')
         sim.simxFinish(clientID)
 
