@@ -140,18 +140,18 @@ def getImageBlob(clientID, hRobot):
 # --------------------------------------------------------------------------
 
 def avoid(sonar):
-    if (sonar[3] < 0.3) or (sonar[4] < 0.3):
-        lspeed, rspeed = +1.0, -0.75
-    elif (sonar[2] < 0.25):
-        lspeed, rspeed = +1.0, -0.5
-    elif (sonar[5] < 0.25):
-        lspeed, rspeed = -0.5, +1.0
-    elif (sonar[1] < 0.15):
-        lspeed, rspeed = +1.0, -0.2
-    elif (sonar[6] < 0.15):
-        lspeed, rspeed = -0.2, +1.0
+    if (sonar[3] < 0.15) or (sonar[4] < 0.15):
+        lspeed, rspeed = +0.3, -0.5
+    elif (sonar[2] < 0.35):
+        lspeed, rspeed = +1.0, -0.3
+    elif (sonar[5] < 0.35):
+        lspeed, rspeed = -0.3, +1.0
+    elif (sonar[1] < 0.45):
+        lspeed, rspeed = +1.5, -0.5
+    elif (sonar[6] < 0.45):
+        lspeed, rspeed = -0.5, +1.5
     else:
-        lspeed, rspeed = +1.5, +1.5
+        lspeed, rspeed = +2.0, +2.0
     #lspeed, rspeed = +1.0, +1.0
 
     return lspeed, rspeed
@@ -214,8 +214,10 @@ def main():
 
         # Real time plotting sacado de:
         # https://gist.github.com/superjax/33151f018407244cb61402e094099c1d
+        '''
         plt.ion() # enable real-time plotting
         plt.figure(1) # create a plot
+        '''
 
         while sim.simxGetConnectionId(clientID) != -1:
 
@@ -234,6 +236,25 @@ def main():
             #print(data)
             #print(theta)
 
+            ang = theta
+            #print(ang)
+            
+            ## Transformo los puntos en las coordenadas sin rotación
+            if data is None:
+                pass
+            else:                
+                for point in data:
+                    # Coordenadas en el eje sin rotación
+                    p = np.array([point[0], point[1]])
+                    p_1 = np.array([[math.cos(theta), -math.sin(theta)], [math.sin(theta), math.cos(theta)]]) @ p.T
+                    real_point = np.array([p_1[0] + x_robot, p_1[1] + y_robot])
+                    x.append(real_point[0])
+                    y.append(real_point[1])
+                    x_r.append(x_robot)
+                    y_r.append(y_robot)
+            
+
+            '''
             ## Transformo los puntos en las coordenadas sin rotación
             if data is None:
                 pass
@@ -255,7 +276,8 @@ def main():
             plt.clf()       # Borrar la figura
             plt.imshow(my_map.occupancy_map.T, cmap="binary")
             plt.pause(0.005)
-            
+            '''
+
             # blobs, coord = getImageBlob(clientID, hRobot)
             # print('###  ', blobs, coord)
 
@@ -274,15 +296,16 @@ def main():
         y_r = np.array(y_r)
 
         # Plot the points
-        #plt.scatter(x,y)
-        #plt.scatter(x_r,y_r, c='magenta')
-        #plt.show()
+        plt.scatter(x,y)
+        plt.scatter(x_r,y_r, c='magenta')
+        plt.show()
         
+        '''
         plt.ioff()
         plt.clf()
         plt.imshow(my_map.occupancy_map.T, cmap="binary")
         plt.show()
-
+        '''
 
         print('### Finishing...')
         sim.simxFinish(clientID)
