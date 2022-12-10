@@ -140,19 +140,18 @@ def getImageBlob(clientID, hRobot):
 # --------------------------------------------------------------------------
 
 def avoid(sonar):
-    if (sonar[3] < 0.3) or (sonar[4] < 0.3):
-        lspeed, rspeed = +1.0, -0.75
-    elif (sonar[2] < 0.25):
-        lspeed, rspeed = +1.0, -0.5
-    elif (sonar[5] < 0.25):
-        lspeed, rspeed = -0.5, +1.0
-    elif (sonar[1] < 0.15):
-        lspeed, rspeed = +1.0, -0.2
-    elif (sonar[6] < 0.15):
-        lspeed, rspeed = -0.2, +1.0
+    if (sonar[3] < 0.25) or (sonar[4] < 0.25):
+        lspeed, rspeed = +0.15, -0.65
+    elif (sonar[2] < 0.3):
+        lspeed, rspeed = +1.0, +0.6
+    elif (sonar[5] < 0.3):
+        lspeed, rspeed = +0.6, +1.0
+    elif (sonar[1] < 0.42):
+        lspeed, rspeed = +1.25, +0.85
+    elif (sonar[6] < 0.42):
+        lspeed, rspeed = +0.85, +1.25
     else:
         lspeed, rspeed = +1.5, +1.5
-    #lspeed, rspeed = +1.0, +1.0
 
     return lspeed, rspeed
 
@@ -264,7 +263,7 @@ def main():
 
             # Action
             setSpeed(clientID, hRobot, lspeed, rspeed)
-            time.sleep(0.1)
+            time.sleep(0.01)
             #print('--------------------------------------------\n\n\n')
 
         # Convert points to numpy array
